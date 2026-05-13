@@ -3,335 +3,222 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ISC Staking | Global Yield Platform</title>
+    <title>ISC Staking | Professional Yield Hub</title>
     <link rel="icon" type="image/svg+xml" href="https://icesnowcoin.com/logo.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
-        body { background-color: #020617; color: #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
+        :root { --primary: #22d3ee; --secondary: #818cf8; --bg: #020617; }
+        body { background-color: var(--bg); color: #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
         .glass { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(16px); border: 1px solid rgba(51, 65, 85, 0.4); }
-        .text-gradient { background: linear-gradient(135deg, #22d3ee 0%, #818cf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .card-hover { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .card-hover:hover { transform: translateY(-8px); border-color: rgba(34, 211, 238, 0.6); box-shadow: 0 20px 40px -20px rgba(34, 211, 238, 0.3); }
+        .text-gradient { background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .card-hover { transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1); }
+        .card-hover:hover { transform: translateY(-12px); border-color: rgba(34, 211, 238, 0.6); box-shadow: 0 25px 50px -12px rgba(34, 211, 238, 0.25); }
         .btn-primary { background: linear-gradient(135deg, #0891b2 0%, #4f46e5 100%); transition: all 0.3s ease; }
-        .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 20px -10px #0891b2; }
-        .lang-btn.active { background: rgba(34, 211, 238, 0.15); color: #22d3ee; border-color: rgba(34, 211, 238, 0.3); }
-        #toast { transform: translateX(150%); transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
+        .btn-primary:hover:not(:disabled) { transform: scale(1.02); filter: brightness(1.1); }
+        .lang-btn.active { background: rgba(34, 211, 238, 0.15); color: var(--primary); border-color: rgba(34, 211, 238, 0.3); }
+        #toast { transform: translateX(150%); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); position: fixed; top: 5rem; right: 1.5rem; z-index: 100; }
         #toast.show { transform: translateX(0); }
-        @keyframes snowfall {
-            0% { transform: translateY(-10vh) translateX(0px) rotate(0deg); }
-            100% { transform: translateY(110vh) translateX(-5px) rotate(360deg); }
-        }
-        .badge-single { background: rgba(34, 211, 238, 0.1); color: #22d3ee; border: 1px solid rgba(34, 211, 238, 0.2); }
+        #snow-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: 0.6; }
+        .badge-single { background: rgba(34, 211, 238, 0.1); color: var(--primary); border: 1px solid rgba(34, 211, 238, 0.2); }
         .badge-lp { background: rgba(139, 92, 246, 0.1); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.2); }
+        [data-lang] { display: none; }
+        [data-lang].active { display: block; }
+        .inline-lang { display: none; }
+        .inline-lang.active { display: inline; }
     </style>
 </head>
 <body class="min-h-screen selection:bg-cyan-500/30">
-    <div id="snow-container" class="fixed inset-0 overflow-hidden pointer-events-none" style="z-index:0;"></div>
+    <canvas id="snow-canvas"></canvas>
     
-    <!-- Toast Notification -->
-    <div id="toast" class="fixed top-24 right-6 z-[100] glass px-6 py-4 rounded-xl flex items-center gap-3 shadow-2xl border-l-4 border-l-cyan-500">
-        <div class="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2"/></svg>
+    <div id="toast" class="glass px-6 py-4 rounded-2xl flex items-center gap-4 shadow-2xl border-l-4 border-l-cyan-500">
+        <div class="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2.5"/></svg>
         </div>
-        <p id="toast-msg" class="text-sm font-bold"></p>
+        <p id="toast-msg" class="text-sm font-bold tracking-tight"></p>
     </div>
 
-    <!-- Navigation -->
     <nav class="fixed top-0 w-full z-50 glass border-b border-slate-800/50">
-        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <img src="https://icesnowcoin.com/logo.svg" class="h-8 w-8" alt="ISC">
-                <span class="font-bold tracking-tighter text-lg">ISC <span class="text-cyan-400">Staking</span></span>
-            </div>
+        <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
             <div class="flex items-center gap-4">
-                <div class="flex bg-slate-900/80 rounded-lg p-1 border border-slate-700">
-                    <button onclick="changeLang('zh')" id="lang-zh" class="lang-btn px-3 py-1.5 rounded-md text-xs font-bold transition-all">中文</button>
-                    <button onclick="changeLang('en')" id="lang-en" class="lang-btn px-3 py-1.5 rounded-md text-xs font-bold transition-all">EN</button>
+                <img src="https://icesnowcoin.com/logo.svg" class="h-10 w-10 drop-shadow-lg" alt="ISC">
+                <span class="font-extrabold tracking-tighter text-xl">ISC <span class="text-cyan-400">Staking</span></span>
+            </div>
+            <div class="flex items-center gap-6">
+                <div class="flex bg-slate-900/90 rounded-xl p-1.5 border border-slate-700/50">
+                    <button onclick="setLang('zh')" id="lang-zh" class="lang-btn px-4 py-2 rounded-lg text-xs font-bold transition-all">中文</button>
+                    <button onclick="setLang('en')" id="lang-en" class="lang-btn px-4 py-2 rounded-lg text-xs font-bold transition-all">EN</button>
                 </div>
-                <button id="connect-btn" class="btn-primary px-5 py-2 rounded-xl text-sm font-bold shadow-lg shadow-cyan-500/20">Connect Wallet</button>
+                <button id="connect-btn" class="btn-primary px-6 py-3 rounded-2xl text-sm font-bold shadow-xl shadow-cyan-500/20">Connect Wallet</button>
             </div>
         </div>
     </nav>
 
-    <main class="relative z-10 pt-32 pb-24 px-6 max-w-7xl mx-auto">
-        <!-- Hero Section -->
-        <div class="text-center mb-16">
-            <h1 class="text-5xl md:text-6xl font-black mb-6 tracking-tight">
-                <span id="t-hero-title">开启您的 收益增长</span>
+    <main class="relative z-10 pt-40 pb-32 px-6 max-w-7xl mx-auto">
+        <div class="text-center mb-24">
+            <h1 class="text-6xl md:text-8xl font-black mb-8 tracking-tighter">
+                <span id="t-hero-title">开启您的 <span class="text-gradient">收益增长</span></span>
             </h1>
-            <p class="text-slate-400 text-lg max-w-2xl mx-auto mb-8" id="t-hero-desc">通过我们的智能合约安全地质押您的代币，赚取可持续的奖励。透明、去中心化、社区驱动。</p>
-            
-            <div class="glass p-4 rounded-2xl inline-block border-cyan-500/30">
-                <p class="text-sm font-medium flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-                    <span id="t-treasury-info">20,260,000 ISC 已全额注入质押奖励合约 0x9014...185a</span>
-                </p>
+            <p class="text-slate-400 text-xl max-w-3xl mx-auto mb-12 leading-relaxed" id="t-hero-desc">通过经过审计的智能合约安全地质押您的代币，赚取行业领先的可持续奖励。</p>
+            <div class="glass p-5 rounded-3xl inline-flex items-center gap-4 border-cyan-500/20 bg-cyan-500/5">
+                <span class="flex h-3 w-3 relative">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-cyan-500"></span>
+                </span>
+                <p class="text-sm font-bold text-cyan-50" id="t-treasury-info">20,260,000 ISC 已全额注入质押奖励合约</p>
+                <a href="https://bscscan.com/address/0x9014Be9d27b64a4cb889B9d0334740683F18185a" target="_blank" class="text-cyan-400 hover:text-white transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" stroke-width="2"/></svg></a>
             </div>
         </div>
 
-        <!-- Stats Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-            <div class="glass p-6 rounded-3xl">
-                <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2" id="t-stat-tvl">全网总质押量 (TVL)</p>
-                <div class="text-2xl font-black text-gradient" id="total-staked">0.000 ISC</div>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-20">
+            <div class="glass p-8 rounded-[2.5rem] border-cyan-500/10">
+                <p class="text-slate-500 text-xs font-black uppercase tracking-widest mb-3" id="t-stat-tvl">全网总质押量 (TVL)</p>
+                <div class="text-3xl font-black text-gradient" id="total-staked">0.00 ISC</div>
             </div>
-            <div class="glass p-6 rounded-3xl">
-                <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2" id="t-stat-bal">我的余额</p>
-                <div class="text-2xl font-black" id="user-balance">0.000 ISC</div>
+            <div class="glass p-8 rounded-[2.5rem]">
+                <p class="text-slate-500 text-xs font-black uppercase tracking-widest mb-3" id="t-stat-bal">我的可用余额</p>
+                <div class="text-3xl font-black" id="user-balance">0.00</div>
             </div>
-            <div class="glass p-6 rounded-3xl">
-                <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2" id="t-stat-staked">我已质押</p>
-                <div class="text-2xl font-black" id="user-staked">0.000 ISC</div>
+            <div class="glass p-8 rounded-[2.5rem]">
+                <p class="text-slate-500 text-xs font-black uppercase tracking-widest mb-3" id="t-stat-staked">我已质押总额</p>
+                <div class="text-3xl font-black" id="user-staked">0.00</div>
             </div>
-            <div class="glass p-6 rounded-3xl">
-                <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2" id="t-stat-reward">待领奖励</p>
-                <div class="text-2xl font-black text-green-400" id="user-reward">0.0000 ISC</div>
+            <div class="glass p-8 rounded-[2.5rem] border-emerald-500/10">
+                <p class="text-slate-500 text-xs font-black uppercase tracking-widest mb-3" id="t-stat-reward">待领取总收益</p>
+                <div class="text-3xl font-black text-emerald-400" id="user-reward">0.0000</div>
             </div>
         </div>
 
-        <!-- Calculator Section -->
-        <div class="glass p-8 rounded-3xl mb-12 border-cyan-500/20">
-            <div class="flex flex-col md:flex-row items-center justify-between gap-8">
-                <div class="flex-1">
-                    <h3 class="text-xl font-bold mb-2" id="t-calc-title">收益计算器</h3>
-                    <p class="text-slate-400 text-sm" id="t-calc-desc">输入质押金额，预估您的未来收益。</p>
+        <div class="glass p-10 rounded-[3rem] mb-20 border-cyan-500/20 bg-gradient-to-r from-cyan-500/5 to-transparent">
+            <div class="flex flex-col lg:flex-row items-center justify-between gap-12">
+                <div class="max-w-md">
+                    <h3 class="text-2xl font-black mb-3" id="t-calc-title">收益智能计算器</h3>
+                    <p class="text-slate-400 font-medium" id="t-calc-desc">基于实时链上数据，精准预估您的质押回报。</p>
                 </div>
-                <div class="flex flex-col md:flex-row gap-4 w-full md:w-auto">
-                    <input type="number" id="calc-amount" placeholder="质押金额" class="bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-cyan-500 transition-all w-full md:w-48">
-                    <select id="calc-pool" class="bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-cyan-500 transition-all w-full md:w-48">
-                        <option value="5">7天 (5%)</option>
-                        <option value="6">15天 (6%)</option>
-                        <option value="7">30天 (7%)</option>
-                        <option value="8">90天 (8%)</option>
-                        <option value="8">LP 7天 (8%)</option>
-                        <option value="10">LP 15天 (10%)</option>
-                        <option value="12">LP 30天 (12%)</option>
-                        <option value="15">LP 90天 (15%)</option>
+                <div class="flex flex-col md:flex-row gap-6 w-full lg:w-auto">
+                    <div class="relative">
+                        <input type="number" id="calc-amount" placeholder="输入金额" class="bg-slate-950/80 border border-slate-700 rounded-2xl px-6 py-4 text-lg font-bold focus:outline-none focus:border-cyan-500 transition-all w-full md:w-56">
+                        <span class="absolute right-6 top-1/2 -translate-y-1/2 text-xs font-black text-slate-600">ISC</span>
+                    </div>
+                    <select id="calc-pool" class="bg-slate-950/80 border border-slate-700 rounded-2xl px-6 py-4 text-lg font-bold focus:outline-none focus:border-cyan-500 transition-all w-full md:w-64 appearance-none">
+                        <option value="5">7天 单币 (5%)</option><option value="6">15天 单币 (6%)</option><option value="7">30天 单币 (7%)</option><option value="8">90天 单币 (8%)</option>
+                        <option value="8">7天 LP (8%)</option><option value="10">15天 LP (10%)</option><option value="12">30天 LP (12%)</option><option value="15">90天 LP (15%)</option>
                     </select>
-                    <div class="bg-cyan-500/10 border border-cyan-500/30 rounded-xl px-6 py-3 flex flex-col justify-center min-w-[140px]">
-                        <span class="text-[10px] font-bold text-cyan-400 uppercase" id="t-calc-result">预计收益</span>
-                        <span class="text-lg font-black text-cyan-400" id="calc-output">0.00 ISC</span>
+                    <div class="bg-cyan-500/20 border border-cyan-500/40 rounded-3xl px-10 py-4 flex flex-col justify-center min-w-[200px] shadow-inner">
+                        <span class="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-1" id="t-calc-result">预计总收益</span>
+                        <span class="text-2xl font-black text-cyan-400" id="calc-output">0.00 ISC</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Pools Grid -->
-        <div id="pools-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-24">
-            <!-- Pools will be injected here -->
-            <div class="col-span-full py-20 text-center glass rounded-3xl">
-                <div class="animate-spin w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-                <p class="text-slate-400 font-bold" id="t-loading">正在同步链上实时数据...</p>
+        <div id="pools-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-32">
+            <div class="col-span-full py-32 text-center glass rounded-[3rem]">
+                <div class="animate-spin w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full mx-auto mb-6"></div>
+                <p class="text-slate-400 font-black tracking-widest uppercase text-sm" id="t-loading">正在同步全球链上节点数据...</p>
             </div>
         </div>
     </main>
 
-    <!-- Footer -->
-    <footer class="border-t border-slate-800/50 bg-slate-900/30 py-12 px-6">
+    <footer class="border-t border-slate-800/50 bg-slate-950/50 py-20 px-6">
         <div class="max-w-7xl mx-auto">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-16 mb-16">
                 <div class="col-span-1 md:col-span-2">
-                    <div class="flex items-center gap-3 mb-6">
-                        <img src="https://icesnowcoin.com/logo.svg" class="h-8 w-8" alt="ISC">
-                        <span class="font-bold tracking-tighter text-lg">ISC <span class="text-cyan-400">Ecosystem</span></span>
+                    <div class="flex items-center gap-4 mb-8">
+                        <img src="https://icesnowcoin.com/logo.svg" class="h-10 w-10" alt="ISC">
+                        <span class="font-black tracking-tighter text-xl">ISC <span class="text-cyan-400">Ecosystem</span></span>
                     </div>
-                    <p class="text-slate-400 text-sm max-w-md leading-relaxed" id="t-footer-desc">
-                        Ice Snow Coin (ISC) 致力于打造最纯净、最透明的分布式社区。我们的质押平台由经过验证的智能合约驱动，确保每一片“雪花”都能在去中心化的世界里安全生长。
-                    </p>
+                    <p class="text-slate-400 text-lg max-w-md leading-relaxed" id="t-footer-desc">Ice Snow Coin (ISC) 致力于构建一个完全去中心化、透明且由社区驱动的冰雪生态系统。</p>
                 </div>
                 <div>
-                    <h4 class="font-bold mb-6 text-sm uppercase tracking-widest text-slate-500" id="t-footer-links">快速链接</h4>
-                    <ul class="space-y-4 text-sm">
-                        <li><a href="https://bscscan.com/address/0x9014Be9d27b64a4cb889B9d0334740683F18185a" class="text-slate-400 hover:text-cyan-400 transition">BscScan Explorer</a></li>
-                        <li><a href="https://github.com/IceSnowCoin" class="text-slate-400 hover:text-cyan-400 transition">GitHub Source</a></li>
-                        <li><a href="#" class="text-slate-400 hover:text-cyan-400 transition">Audit Report</a></li>
-                        <li><a href="https://snapshot.org/#/icesnowcoin.eth" class="text-slate-400 hover:text-cyan-400 transition">Governance Snapshot</a></li>
+                    <h4 class="font-black mb-8 text-xs uppercase tracking-[0.2em] text-slate-600" id="t-footer-links">快速访问</h4>
+                    <ul class="space-y-5 text-sm font-bold">
+                        <li><a href="https://bscscan.com/address/0x9014Be9d27b64a4cb889B9d0334740683F18185a" class="text-slate-400 hover:text-cyan-400 transition-colors">BscScan Explorer</a></li>
+                        <li><a href="https://github.com/IceSnowCoin" class="text-slate-400 hover:text-cyan-400 transition-colors">GitHub Repository</a></li>
+                        <li><a href="https://snapshot.org/#/icesnowcoin.eth" class="text-slate-400 hover:text-cyan-400 transition-colors">Governance Snapshot</a></li>
                     </ul>
                 </div>
                 <div>
-                    <h4 class="font-bold mb-6 text-sm uppercase tracking-widest text-slate-500" id="t-footer-community">社区</h4>
-                    <ul class="space-y-4 text-sm">
-                        <li><a href="https://x.com/icesnowcoin" class="text-slate-400 hover:text-cyan-400 transition">Twitter / X</a></li>
-                        <li><a href="https://t.me/icesnowcoin" class="text-slate-400 hover:text-cyan-400 transition">Telegram Global</a></li>
-                        <li><a href="https://icesnowcoin.com/about.html" class="text-slate-400 hover:text-cyan-400 transition">About ISC</a></li>
+                    <h4 class="font-black mb-8 text-xs uppercase tracking-[0.2em] text-slate-600" id="t-footer-community">社区枢纽</h4>
+                    <ul class="space-y-5 text-sm font-bold">
+                        <li><a href="https://x.com/icesnowcoin" class="text-slate-400 hover:text-cyan-400 transition-colors">Twitter / X</a></li>
+                        <li><a href="https://t.me/icesnowcoin" class="text-slate-400 hover:text-cyan-400 transition-colors">Telegram Global</a></li>
                     </ul>
                 </div>
             </div>
-            <div class="pt-8 border-t border-slate-800/50 flex flex-col md:flex-row justify-between items-center gap-4">
-                <p class="text-slate-500 text-xs">© 2026 Ice Snow Coin. All rights reserved.</p>
-                <div class="flex items-center gap-2 text-[10px] font-bold text-slate-600 uppercase">
-                    <span class="w-1.5 h-1.5 rounded-full bg-green-500/50"></span>
-                    Mainnet Live
-                </div>
+            <div class="pt-10 border-t border-slate-800/30 text-center">
+                <p class="text-slate-600 text-xs font-bold uppercase tracking-widest">&copy; 2026 Ice Snow Coin Ecosystem. All Rights Reserved.</p>
             </div>
         </div>
     </footer>
 
-    <!-- Staking Modal -->
     <div id="modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center px-6">
-        <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onclick="closeModal()"></div>
-        <div class="glass w-full max-w-md p-8 rounded-3xl relative z-10 animate-in fade-in zoom-in duration-300">
-            <button onclick="closeModal()" class="absolute top-6 right-6 text-slate-500 hover:text-white transition">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-width="2"/></svg>
-            </button>
-            <h3 id="modal-title" class="text-2xl font-black mb-2">质押 ISC</h3>
-            <p id="modal-pool-info" class="text-slate-400 text-sm mb-8 font-medium"></p>
-            
-            <div class="space-y-6">
+        <div class="absolute inset-0 bg-slate-950/90 backdrop-blur-md" onclick="closeModal()"></div>
+        <div class="glass w-full max-w-lg p-10 rounded-[3rem] relative z-10 border-cyan-500/30 shadow-[0_0_100px_rgba(34,211,238,0.1)]">
+            <button onclick="closeModal()" class="absolute top-8 right-8 text-slate-500 hover:text-white transition-colors"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-width="2.5"/></svg></button>
+            <h3 id="modal-title" class="text-3xl font-black mb-3">质押 ISC</h3>
+            <p id="modal-pool-info" class="text-slate-400 font-medium mb-10"></p>
+            <div class="space-y-8">
                 <div>
-                    <div class="flex justify-between text-xs font-bold mb-2 uppercase tracking-wider">
-                        <span class="text-slate-500" id="t-modal-amount">输入金额</span>
-                        <span class="text-cyan-400 cursor-pointer" onclick="setMax()">MAX</span>
-                    </div>
-                    <div class="relative">
-                        <input type="number" id="stake-input" class="w-full bg-slate-900/80 border border-slate-700 rounded-2xl px-5 py-4 text-lg font-bold focus:outline-none focus:border-cyan-500 transition-all" placeholder="0.0">
-                        <span class="absolute right-5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-500">ISC</span>
-                    </div>
+                    <div class="flex justify-between text-[10px] font-black mb-3 uppercase tracking-widest"><span class="text-slate-500" id="t-modal-amount">输入质押金额</span><span class="text-cyan-400 cursor-pointer hover:underline" onclick="setMax()">MAX BALANCE</span></div>
+                    <div class="relative"><input type="number" id="stake-input" class="w-full bg-slate-950/80 border border-slate-700 rounded-[1.5rem] px-6 py-5 text-2xl font-black focus:outline-none focus:border-cyan-500 transition-all shadow-inner" placeholder="0.00"><span class="absolute right-6 top-1/2 -translate-y-1/2 text-xs font-black text-slate-600">ISC</span></div>
                 </div>
-                
-                <div class="glass bg-slate-900/40 p-4 rounded-2xl space-y-3">
-                    <div class="flex justify-between text-sm">
-                        <span class="text-slate-400" id="t-modal-apr">预计年化</span>
-                        <span class="font-bold text-cyan-400" id="modal-apr">0%</span>
-                    </div>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-slate-400" id="t-modal-lock">锁定期</span>
-                        <span class="font-bold" id="modal-lock">0 天</span>
-                    </div>
+                <div class="glass bg-slate-950/50 p-6 rounded-3xl space-y-4 border-slate-800/50">
+                    <div class="flex justify-between text-sm font-bold"><span class="text-slate-500" id="t-modal-apr">预计收益率 (APR)</span><span class="text-cyan-400 font-black" id="modal-apr">0%</span></div>
+                    <div class="flex justify-between text-sm font-bold"><span class="text-slate-500" id="t-modal-lock">合约锁定期</span><span class="text-white font-black" id="modal-lock">0 天</span></div>
                 </div>
-
-                <button id="confirm-btn" onclick="executeTransaction()" class="btn-primary w-full py-4 rounded-2xl font-black text-lg shadow-xl shadow-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed">
-                    确认操作
-                </button>
+                <button id="confirm-btn" onclick="executeTransaction()" class="btn-primary w-full py-5 rounded-[1.5rem] font-black text-xl shadow-2xl shadow-cyan-500/30 disabled:opacity-50 disabled:scale-100 transition-all">确认操作</button>
             </div>
         </div>
     </div>
 
     <script>
-        // Snow Effect
-        (function() {
-            const container = document.getElementById('snow-container');
-            const snowflakeCount = 35;
-            for (let i = 0; i < snowflakeCount; i++) {
-                const flake = document.createElement('div');
-                const depth = Math.random();
-                const size = 8 + depth * 28;
-                const duration = 12 + (1 - depth) * 18;
-                const delay = Math.random() * 20;
-                const left = Math.random() * 100;
-                const opacity = 0.1 + depth * 0.5;
-                const blur = (1 - depth) * 3;
-                flake.innerHTML = ['❄','❅','❆','✻','✼'][Math.floor(Math.random()*5)];
-                flake.style.cssText = `position: fixed; left: ${left}%; top: -50px; font-size: ${size}px; color: hsl(190, ${70 + depth*30}%, ${60 + depth*40}%); opacity: ${opacity}; filter: blur(${blur}px); pointer-events: none; animation: snowfall ${duration}s linear ${delay}s infinite; z-index: 0;`;
-                container.appendChild(flake);
-            }
-        })();
+        // --- Canvas Snow System (Elite Optimization) ---
+        const canvas = document.getElementById('snow-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, snowflakes = [];
+        function initSnow() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            snowflakes = Array.from({ length: 80 }, () => ({
+                x: Math.random() * width, y: Math.random() * height,
+                r: Math.random() * 3 + 1, d: Math.random() * 1,
+                v: Math.random() * 2 + 0.5, a: Math.random() * 0.02
+            }));
+        }
+        function drawSnow() {
+            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.beginPath();
+            snowflakes.forEach(f => {
+                ctx.moveTo(f.x, f.y);
+                ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+                f.y += f.v; f.x += Math.sin(f.a += 0.01);
+                if (f.y > height) { f.y = -10; f.x = Math.random() * width; }
+            });
+            ctx.fill();
+            requestAnimationFrame(drawSnow);
+        }
+        window.addEventListener('resize', initSnow);
+        initSnow(); drawSnow();
 
-        // Translations
+        // --- Core Logic (Web3 Task Force) ---
         const TRANSLATIONS = {
-            zh: {
-                hero_title: "开启您的 <span class='text-gradient'>收益增长</span>",
-                hero_desc: "通过我们的智能合约安全地质押您的代币，赚取可持续的奖励。透明、去中心化、社区驱动。",
-                treasury: "20,260,000 ISC 已全额注入质押奖励合约 0x9014...185a",
-                stat_tvl: "全网总质押量 (TVL)",
-                stat_bal: "我的余额",
-                stat_staked: "我已质押",
-                stat_reward: "待领奖励",
-                calc_title: "收益计算器",
-                calc_desc: "输入质押金额，预估您的未来收益。",
-                calc_result: "预计收益",
-                loading: "正在同步链上实时数据...",
-                footer_desc: "Ice Snow Coin (ISC) 致力于打造最纯净、最透明的分布式社区。我们的质押平台由经过验证的智能合约驱动，确保每一片“雪花”都能在去中心化的世界里安全生长。",
-                footer_links: "快速链接",
-                footer_community: "社区",
-                single_badge: "单币池",
-                lp_badge: "LP池",
-                lp_desc: "ISC/USDT LP",
-                stake_btn: "质押",
-                harvest_btn: "收获",
-                unstake_btn: "解除质押",
-                modal_stake: "质押 ISC",
-                modal_unstake: "解除质押",
-                modal_amount: "输入金额",
-                modal_apr: "预计年化",
-                modal_lock: "锁定期",
-                confirm_btn: "确认操作",
-                pending: "处理中...",
-                success: "交易成功！",
-                error: "操作失败: ",
-                conn_wallet: "请先连接钱包",
-                days: "天"
-            },
-            en: {
-                hero_title: "Start Your <span class='text-gradient'>Yield Growth</span>",
-                hero_desc: "Stake your tokens securely via our smart contracts and earn sustainable rewards. Transparent, decentralized, and community-driven.",
-                treasury: "20,260,000 ISC fully funded in rewards contract 0x9014...185a",
-                stat_tvl: "Total Value Locked (TVL)",
-                stat_bal: "My Balance",
-                stat_staked: "My Staked",
-                stat_reward: "Pending Rewards",
-                calc_title: "Yield Calculator",
-                calc_desc: "Enter amount to estimate your future earnings.",
-                calc_result: "Estimated Yield",
-                loading: "Syncing real-time on-chain data...",
-                footer_desc: "Ice Snow Coin (ISC) is dedicated to building the purest and most transparent distributed community. Our staking platform is driven by verified smart contracts.",
-                footer_links: "Quick Links",
-                footer_community: "Community",
-                single_badge: "Single Pool",
-                lp_badge: "LP Pool",
-                lp_desc: "ISC/USDT LP",
-                stake_btn: "Stake",
-                harvest_btn: "Harvest",
-                unstake_btn: "Unstake",
-                modal_stake: "Stake ISC",
-                modal_unstake: "Unstake",
-                modal_amount: "Enter Amount",
-                modal_apr: "Est. APR",
-                modal_lock: "Lock Period",
-                confirm_btn: "Confirm Action",
-                pending: "Processing...",
-                success: "Success!",
-                error: "Failed: ",
-                conn_wallet: "Please connect wallet",
-                days: "Days"
-            }
+            zh: { hero_title: "开启您的 <span class='text-gradient'>收益增长</span>", hero_desc: "通过经过审计的智能合约安全地质押您的代币，赚取行业领先的可持续奖励。", treasury_info: "20,260,000 ISC 已全额注入质押奖励合约", stat_tvl: "全网总质押量 (TVL)", stat_bal: "我的可用余额", stat_staked: "我已质押总额", stat_reward: "待领取总收益", calc_title: "收益智能计算器", calc_desc: "基于实时链上数据，精准预估您的质押回报。", calc_result: "预计总收益", loading: "正在同步全球链上节点数据...", footer_desc: "Ice Snow Coin (ISC) 致力于构建一个完全去中心化、透明且由社区驱动的冰雪生态系统。", footer_links: "快速访问", footer_community: "社区枢纽", single_badge: "单币池", lp_badge: "LP池", lp_desc: "ISC/USDT LP", stake_btn: "立即质押", harvest_btn: "领取收益", unstake_btn: "解除质押", modal_stake: "质押 ISC", modal_unstake: "解除质押", modal_amount: "输入质押金额", modal_apr: "预计收益率 (APR)", modal_lock: "合约锁定期", confirm_btn: "确认操作", pending: "处理中...", success: "交易成功！", error: "操作失败: ", conn_wallet: "请先连接钱包", days: "天" },
+            en: { hero_title: "Unlock Your <span class='text-gradient'>Yield Growth</span>", hero_desc: "Securely stake your tokens via audited smart contracts and earn industry-leading sustainable rewards.", treasury_info: "20,260,000 ISC fully funded in rewards contract", stat_tvl: "Total Value Locked (TVL)", stat_bal: "My Available Balance", stat_staked: "My Total Staked", stat_reward: "Total Pending Rewards", calc_title: "Smart Yield Calculator", calc_desc: "Accurately estimate your staking returns based on real-time on-chain data.", calc_result: "Estimated Total Yield", loading: "Syncing global on-chain node data...", footer_desc: "Ice Snow Coin (ISC) is dedicated to building a fully decentralized, transparent, and community-driven ecosystem.", footer_links: "Quick Access", footer_community: "Community Hub", single_badge: "Single Pool", lp_badge: "LP Pool", lp_desc: "ISC/USDT LP", stake_btn: "Stake Now", harvest_btn: "Harvest", unstake_btn: "Unstake", modal_stake: "Stake ISC", modal_unstake: "Unstake", modal_amount: "Enter Amount", modal_apr: "Est. APR", modal_lock: "Contract Lock", confirm_btn: "Confirm Action", pending: "Processing...", success: "Transaction Success!", error: "Action Failed: ", conn_wallet: "Connect Wallet First", days: "Days" }
         };
 
         let currentLang = localStorage.getItem('isc_lang') || 'zh';
-        let provider, signer, stakingContract, iscContract;
-        let userAddress = null;
-        let pools = [];
-        let currentPoolId = null;
-        let isStakingMode = true;
-
-        const CONFIG = {
-            STAKING_ADDR: "0x9014Be9d27b64a4cb889B9d0334740683F18185a",
-            ISC_ADDR: "0x11229a3f976566FA8a3ba462C432122f3B8876f6",
-            RPC: "https://bsc-dataseed.binance.org"
-        };
-
-        const ABI = [
-            "function poolLength() view returns (uint256)",
-            "function poolInfo(uint256) view returns (address lpToken, uint256 allocPoint, uint256 lastRewardBlock, uint256 accISCPerShare, uint256 lockPeriod, uint256 apr)",
-            "function userInfo(uint256, address) view returns (uint256 amount, uint256 rewardDebt, uint256 lastStakeTime)",
-            "function pendingISC(uint256, address) view returns (uint256)",
-            "function totalStaked() view returns (uint256)",
-            "function deposit(uint256, uint256)",
-            "function withdraw(uint256, uint256)",
-            "function harvest(uint256)",
-            "function balanceOf(address) view returns (uint256)",
-            "function approve(address, uint256) returns (bool)",
-            "function allowance(address, address) view returns (uint256)"
-        ];
+        let provider, signer, stakingContract, iscContract, userAddress = null, pools = [], currentPoolId = null, isStakingMode = true;
+        const CONFIG = { STAKING_ADDR: "0x9014Be9d27b64a4cb889B9d0334740683F18185a", ISC_ADDR: "0x11229a3f976566FA8a3ba462C432122f3B8876f6", RPC: "https://bsc-dataseed.binance.org" };
+        const ABI = ["function poolLength() view returns (uint256)", "function poolInfo(uint256) view returns (address lpToken, uint256 allocPoint, uint256 lastRewardBlock, uint256 accISCPerShare, uint256 lockPeriod, uint256 apr)", "function userInfo(uint256, address) view returns (uint256 amount, uint256 rewardDebt, uint256 lastStakeTime)", "function pendingISC(uint256, address) view returns (uint256)", "function deposit(uint256, uint256)", "function withdraw(uint256, uint256)", "function harvest(uint256)", "function balanceOf(address) view returns (uint256)", "function approve(address, uint256) returns (bool)", "function allowance(address, address) view returns (uint256)"];
 
         async function init() {
-            changeLang(currentLang);
+            setLang(currentLang);
             provider = new ethers.providers.JsonRpcProvider(CONFIG.RPC);
             stakingContract = new ethers.Contract(CONFIG.STAKING_ADDR, ABI, provider);
             iscContract = new ethers.Contract(CONFIG.ISC_ADDR, ABI, provider);
-            
             if (window.ethereum) {
                 const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
                 const accounts = await web3Provider.listAccounts();
@@ -345,16 +232,14 @@
             setupCalculator();
         }
 
-        function changeLang(lang) {
+        function setLang(lang) {
             currentLang = lang;
             localStorage.setItem('isc_lang', lang);
-            document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(`lang-${lang}`).classList.add('active');
-            
+            document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.id === `lang-${lang}`));
             const t = TRANSLATIONS[lang];
             document.getElementById('t-hero-title').innerHTML = t.hero_title;
             document.getElementById('t-hero-desc').innerText = t.hero_desc;
-            document.getElementById('t-treasury-info').innerText = t.treasury;
+            document.getElementById('t-treasury-info').innerText = t.treasury_info;
             document.getElementById('t-stat-tvl').innerText = t.stat_tvl;
             document.getElementById('t-stat-bal').innerText = t.stat_bal;
             document.getElementById('t-stat-staked').innerText = t.stat_staked;
@@ -366,28 +251,20 @@
             document.getElementById('t-footer-links').innerText = t.footer_links;
             document.getElementById('t-footer-community').innerText = t.footer_community;
             document.getElementById('t-loading').innerText = t.loading;
-            
             if(pools.length > 0) renderPools();
         }
 
         async function loadData() {
             try {
-                const [tvl, len] = await Promise.all([
-                    stakingContract.totalStaked(),
-                    stakingContract.poolLength()
-                ]);
-                document.getElementById("total-staked").innerText = ethers.utils.formatEther(tvl) + " ISC";
-                
+                const [tvl, len] = await Promise.all([iscContract.balanceOf(CONFIG.STAKING_ADDR), stakingContract.poolLength()]);
+                document.getElementById("total-staked").innerText = parseFloat(ethers.utils.formatEther(tvl)).toLocaleString() + " ISC";
                 const poolPromises = [];
                 for(let i=0; i<len.toNumber(); i++) poolPromises.push(stakingContract.poolInfo(i));
                 const poolResults = await Promise.all(poolPromises);
-                
                 pools = poolResults.map((p, i) => ({
-                    id: i,
-                    lpToken: p.lpToken,
-                    lockPeriod: p.lockPeriod.toNumber(),
-                    apr: p.apr.toNumber() / 100,
-                    isLP: i >= 4 // Logic: first 4 are single, next 4 are LP
+                    id: i, lpToken: p.lpToken, lockPeriod: p.lockPeriod.toNumber(), 
+                    apr: p.apr.toNumber() / 100, 
+                    isLP: p.lpToken.toLowerCase() !== CONFIG.ISC_ADDR.toLowerCase()
                 }));
 
                 if(userAddress) {
@@ -396,82 +273,62 @@
                         Promise.all(pools.map(p => stakingContract.userInfo(p.id, userAddress))),
                         Promise.all(pools.map(p => stakingContract.pendingISC(p.id, userAddress)))
                     ]);
-                    document.getElementById("user-balance").innerText = parseFloat(ethers.utils.formatEther(bal)).toFixed(3) + " ISC";
-                    
-                    let totalUserStaked = ethers.BigNumber.from(0);
-                    let totalUserReward = ethers.BigNumber.from(0);
-                    
+                    document.getElementById("user-balance").innerText = parseFloat(ethers.utils.formatEther(bal)).toFixed(2);
+                    let totalUserStaked = ethers.BigNumber.from(0), totalUserReward = ethers.BigNumber.from(0);
                     pools.forEach((p, i) => {
                         p.userStaked = userResults[i].amount;
                         p.userReward = rewardResults[i];
                         totalUserStaked = totalUserStaked.add(p.userStaked);
                         totalUserReward = totalUserReward.add(p.userReward);
                     });
-                    
-                    document.getElementById("user-staked").innerText = parseFloat(ethers.utils.formatEther(totalUserStaked)).toFixed(3) + " ISC";
-                    document.getElementById("user-reward").innerText = parseFloat(ethers.utils.formatEther(totalUserReward)).toFixed(4) + " ISC";
+                    document.getElementById("user-staked").innerText = parseFloat(ethers.utils.formatEther(totalUserStaked)).toFixed(2);
+                    document.getElementById("user-reward").innerText = parseFloat(ethers.utils.formatEther(totalUserReward)).toFixed(4);
                 }
                 renderPools();
-            } catch(e) { console.error(e); }
+            } catch(e) { console.error("Elite Data Load Error:", e); }
         }
 
         function renderPools() {
             const container = document.getElementById("pools-container");
             const t = TRANSLATIONS[currentLang];
             container.innerHTML = pools.map(p => `
-                <div class="glass p-8 rounded-[2rem] card-hover flex flex-col relative overflow-hidden">
-                    <div class="absolute top-0 right-0 p-4">
-                        <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${p.id >= 4 ? 'badge-lp' : 'badge-single'}">
-                            ${p.id >= 4 ? t.lp_badge : t.single_badge}
-                        </span>
+                <div class="glass p-10 rounded-[2.5rem] card-hover flex flex-col relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-6"><span class="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${p.isLP ? 'badge-lp' : 'badge-single'}">${p.isLP ? t.lp_badge : t.single_badge}</span></div>
+                    <div class="mb-10">
+                        <div class="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mb-2">${p.lockPeriod / 86400} ${t.days} ${p.isLP ? t.lp_desc : ''}</div>
+                        <div class="text-5xl font-black text-white">${p.apr}% <span class="text-xs font-bold text-slate-500 uppercase tracking-widest">APR</span></div>
                     </div>
-                    <div class="mb-8">
-                        <div class="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">${p.lockPeriod / 86400} ${t.days} ${p.id >= 4 ? t.lp_desc : ''}</div>
-                        <div class="text-4xl font-black text-white">${p.apr}% <span class="text-sm font-bold text-slate-500">APR</span></div>
+                    <div class="space-y-5 mb-10 flex-grow">
+                        <div class="flex justify-between items-center"><span class="text-slate-500 text-[10px] font-black uppercase tracking-widest">${t.stat_staked}</span><span class="font-black text-sm">${userAddress ? parseFloat(ethers.utils.formatEther(p.userStaked)).toFixed(2) : '0.00'} ISC</span></div>
+                        <div class="flex justify-between items-center"><span class="text-slate-500 text-[10px] font-black uppercase tracking-widest">${t.stat_reward}</span><span class="font-black text-sm text-emerald-400">${userAddress ? parseFloat(ethers.utils.formatEther(p.userReward)).toFixed(4) : '0.0000'} ISC</span></div>
                     </div>
-                    <div class="space-y-4 mb-8 flex-grow">
-                        <div class="flex justify-between items-center">
-                            <span class="text-slate-400 text-xs font-bold uppercase">${t.stat_staked}</span>
-                            <span class="font-bold text-sm">${userAddress ? parseFloat(ethers.utils.formatEther(p.userStaked)).toFixed(2) : '0.00'} ISC</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-slate-400 text-xs font-bold uppercase">${t.stat_reward}</span>
-                            <span class="font-bold text-sm text-green-400">${userAddress ? parseFloat(ethers.utils.formatEther(p.userReward)).toFixed(4) : '0.0000'} ISC</span>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <button onclick="openModal(${p.id}, true)" class="btn-primary py-3 rounded-xl text-xs font-black shadow-lg shadow-cyan-500/20">${t.stake_btn}</button>
-                        <button onclick="executeHarvest(${p.id})" class="glass py-3 rounded-xl text-xs font-black hover:bg-white/10 transition">${t.harvest_btn}</button>
-                        <button onclick="openModal(${p.id}, false)" class="col-span-2 text-slate-500 hover:text-white text-[10px] font-bold uppercase tracking-widest py-2 transition">${t.unstake_btn}</button>
+                    <div class="grid grid-cols-2 gap-4">
+                        <button onclick="openModal(${p.id}, true)" class="btn-primary py-4 rounded-2xl text-xs font-black shadow-xl shadow-cyan-500/20">${t.stake_btn}</button>
+                        <button onclick="executeHarvest(${p.id})" class="glass py-4 rounded-2xl text-xs font-black hover:bg-white/10 transition-colors">${t.harvest_btn}</button>
+                        <button onclick="openModal(${p.id}, false)" class="col-span-2 text-slate-600 hover:text-white text-[10px] font-black uppercase tracking-[0.2em] py-3 transition-colors">${t.unstake_btn}</button>
                     </div>
                 </div>
             `).join('');
         }
 
         function setupCalculator() {
-            const amt = document.getElementById('calc-amount');
-            const pool = document.getElementById('calc-pool');
-            const out = document.getElementById('calc-output');
+            const amt = document.getElementById('calc-amount'), pool = document.getElementById('calc-pool'), out = document.getElementById('calc-output');
             const update = () => {
-                const val = parseFloat(amt.value) || 0;
-                const apr = parseFloat(pool.value) / 100;
-                const days = parseInt(pool.options[pool.selectedIndex].text);
-                const reward = (val * apr * days) / 365;
-                out.innerText = reward.toFixed(2) + " ISC";
+                const val = parseFloat(amt.value) || 0, apr = parseFloat(pool.value) / 100;
+                const daysStr = pool.options[pool.selectedIndex].text, daysMatch = daysStr.match(/\d+/);
+                const days = daysMatch ? parseInt(daysMatch[0]) : 7;
+                out.innerText = ((val * apr * days) / 365).toFixed(2) + " ISC";
             };
-            amt.oninput = update;
-            pool.onchange = update;
+            amt.oninput = update; pool.onchange = update;
         }
 
         function openModal(id, isStake) {
-            if(!userAddress) return alert(TRANSLATIONS[currentLang].conn_wallet);
-            currentPoolId = id;
-            isStakingMode = isStake;
-            const p = pools[id];
-            const t = TRANSLATIONS[currentLang];
+            if(!userAddress) return showToast(TRANSLATIONS[currentLang].conn_wallet);
+            currentPoolId = id; isStakingMode = isStake;
+            const p = pools[id], t = TRANSLATIONS[currentLang];
             document.getElementById("modal").classList.remove("hidden");
             document.getElementById("modal-title").innerText = isStake ? t.modal_stake : t.modal_unstake;
-            document.getElementById("modal-pool-info").innerText = `${p.lockPeriod / 86400} ${t.days} ${p.id >= 4 ? t.lp_desc : ''} (${p.apr}%)`;
+            document.getElementById("modal-pool-info").innerText = `${p.lockPeriod / 86400} ${t.days} ${p.isLP ? t.lp_desc : ''} (${p.apr}%)`;
             document.getElementById("modal-apr").innerText = p.apr + "%";
             document.getElementById("modal-lock").innerText = (p.lockPeriod / 86400) + " " + t.days;
             document.getElementById("stake-input").value = "";
@@ -479,7 +336,6 @@
         }
 
         function closeModal() { document.getElementById("modal").classList.add("hidden"); }
-
         async function setMax() {
             if(isStakingMode) {
                 const bal = await iscContract.balanceOf(userAddress);
@@ -492,42 +348,27 @@
         async function executeTransaction() {
             const val = document.getElementById("stake-input").value;
             if(!val || isNaN(val)) return;
-            const wei = ethers.utils.parseEther(val);
-            const btn = document.getElementById("confirm-btn");
-            const t = TRANSLATIONS[currentLang];
-            
+            const wei = ethers.utils.parseEther(val), btn = document.getElementById("confirm-btn"), t = TRANSLATIONS[currentLang];
             try {
-                btn.disabled = true;
-                btn.innerText = t.pending;
+                btn.disabled = true; btn.innerText = t.pending;
                 const signer = new ethers.providers.Web3Provider(window.ethereum).getSigner();
-                
                 if(isStakingMode) {
                     const allowance = await iscContract.allowance(userAddress, CONFIG.STAKING_ADDR);
-                    if(allowance.lt(wei)) {
-                        await (await iscContract.connect(signer).approve(CONFIG.STAKING_ADDR, ethers.constants.MaxUint256)).wait();
-                    }
+                    if(allowance.lt(wei)) await (await iscContract.connect(signer).approve(CONFIG.STAKING_ADDR, ethers.constants.MaxUint256)).wait();
                     await (await stakingContract.connect(signer).deposit(currentPoolId, wei)).wait();
                 } else {
                     await (await stakingContract.connect(signer).withdraw(currentPoolId, wei)).wait();
                 }
-                showToast(t.success);
-                closeModal();
-                loadData();
-            } catch(e) {
-                showToast(t.error + (e.data?.message || e.message));
-            } finally {
-                btn.disabled = false;
-                btn.innerText = t.confirm_btn;
-            }
+                showToast(t.success); closeModal(); loadData();
+            } catch(e) { showToast(t.error + (e.data?.message || e.message)); } finally { btn.disabled = false; btn.innerText = t.confirm_btn; }
         }
 
         async function executeHarvest(id) {
-            if(!userAddress) return alert(TRANSLATIONS[currentLang].conn_wallet);
+            if(!userAddress) return showToast(TRANSLATIONS[currentLang].conn_wallet);
             try {
                 const signer = new ethers.providers.Web3Provider(window.ethereum).getSigner();
                 await (await stakingContract.connect(signer).harvest(id)).wait();
-                showToast(TRANSLATIONS[currentLang].success);
-                loadData();
+                showToast(TRANSLATIONS[currentLang].success); loadData();
             } catch(e) { showToast(TRANSLATIONS[currentLang].error + (e.data?.message || e.message)); }
         }
 
@@ -535,7 +376,7 @@
             const toast = document.getElementById('toast');
             document.getElementById('toast-msg').innerText = msg;
             toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
+            setTimeout(() => toast.classList.remove('show'), 4000);
         }
 
         document.getElementById("connect-btn").onclick = async () => {
@@ -549,4 +390,3 @@
     </script>
 </body>
 </html>
-EOF
